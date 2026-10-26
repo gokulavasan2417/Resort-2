@@ -131,7 +131,7 @@ export default function HeroSection({ onExplore, onBook }) {
         handlePrev();
       }
     } else if (Math.abs(deltaY) > Math.abs(deltaX) && deltaY > 40) {
-      // Swipe up (scroll down) -> smoothly transition to Rooms section
+      // Swipe up (scroll down) -> smoothly transition to next section (Family)
       if (isScrollingToRoomsRef.current) return;
       isScrollingToRoomsRef.current = true;
       onExplore();
@@ -141,7 +141,7 @@ export default function HeroSection({ onExplore, onBook }) {
     }
   };
 
-  // Wheel Gestures (Horizontal swipes change slides; vertical scroll smoothly transitions to Rooms)
+  // Wheel Gestures (Horizontal swipes change slides; vertical scroll smoothly transitions to next section)
   const handleWheel = (e) => {
     // 1. Horizontal trackpad gesture -> cycle room slides
     if (Math.abs(e.deltaX) > Math.abs(e.deltaY) && Math.abs(e.deltaX) > 25) {
@@ -154,7 +154,7 @@ export default function HeroSection({ onExplore, onBook }) {
       return;
     }
 
-    // 2. Vertical scroll down on this page -> smoothly scroll to that page (Rooms)
+    // 2. Vertical scroll down on this page -> smoothly scroll to next section
     if (e.deltaY > 20) {
       if (isScrollingToRoomsRef.current) return;
       isScrollingToRoomsRef.current = true;
@@ -179,7 +179,7 @@ export default function HeroSection({ onExplore, onBook }) {
 
   return (
     <section
-      id="hero"
+      id="rooms"
       ref={heroRef}
       onWheel={handleWheel}
       onMouseDown={handleMouseDown}

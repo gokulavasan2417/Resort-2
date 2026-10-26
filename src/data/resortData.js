@@ -14,7 +14,7 @@ export const resortInfo = {
 };
 
 export const navLinks = [
-  { label: "Home", href: "#hero" },
+  { label: "Home", href: "#sanctuary" },
   { label: "Rooms", href: "#rooms" },
   { label: "Family", href: "#family" },
   { label: "Contact", href: "#contact" },

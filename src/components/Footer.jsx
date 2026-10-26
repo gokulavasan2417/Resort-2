@@ -154,21 +154,21 @@ export default function Footer({ onNavClick }) {
 
             <div className="pt-3 flex items-center gap-3">
               <a
-                href="#hero"
+                href="#sanctuary"
                 aria-label="Instagram"
                 className="w-8 h-8 rounded-full bg-white/5 hover:bg-gold-500 hover:text-charcoal-950 flex items-center justify-center transition-colors"
               >
                 <Instagram size={14} />
               </a>
               <a
-                href="#hero"
+                href="#sanctuary"
                 aria-label="Facebook"
                 className="w-8 h-8 rounded-full bg-white/5 hover:bg-gold-500 hover:text-charcoal-950 flex items-center justify-center transition-colors"
               >
                 <Facebook size={14} />
               </a>
               <a
-                href="#hero"
+                href="#sanctuary"
                 aria-label="LinkedIn"
                 className="w-8 h-8 rounded-full bg-white/5 hover:bg-gold-500 hover:text-charcoal-950 flex items-center justify-center transition-colors"
               >

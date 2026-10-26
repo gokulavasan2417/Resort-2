@@ -38,16 +38,23 @@ export default function App() {
       {/* Main Experience Flow */}
       <main>
         {/* 1. Cinematic Intro Video (Scroll-Controlled Main-8.mp4 Playback) */}
-        <IntroVideoSection onComplete={() => scrollToSection('hero')} />
-
-        {/* 2. Landing Page (Destination Showcase, Bold Typography & Floating Preview Cards) */}
-        <HeroSection
-          onExplore={() => scrollToSection('rooms')}
-          onBook={handleOpenBooking}
+        <IntroVideoSection
+          onComplete={() => scrollToSection('sanctuary')}
+          onExploreSanctuary={() => scrollToSection('sanctuary')}
+          onBookStay={handleOpenBooking}
         />
 
-        {/* 3. Rooms Page (Full Architectural Journey & 4 Luxury Residences) */}
-        <RoomsSection onBookRoom={handleBookRoom} />
+        {/* 2. Sanctuary Overview & Architectural Journey (The Sanctuary Elevation) */}
+        <RoomsSection
+          onBookRoom={handleBookRoom}
+          onExploreRooms={() => scrollToSection('rooms')}
+        />
+
+        {/* 3. Luxury Rooms Page (Destination Showcase, Bold Typography & Floating Preview Cards) */}
+        <HeroSection
+          onExplore={() => scrollToSection('family')}
+          onBook={handleOpenBooking}
+        />
 
         {/* 4. Family Page (Young Rangers Nature Lab, Canopy Adventure & Family Cottage) */}
         <ActivitiesSection

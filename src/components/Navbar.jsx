@@ -6,7 +6,7 @@ import { navLinks, resortInfo } from '../data/resortData';
 export default function Navbar({ onOpenBooking }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState('hero');
+  const [activeSection, setActiveSection] = useState('sanctuary');
 
   useEffect(() => {
     const handleScroll = () => {
@@ -17,7 +17,7 @@ export default function Navbar({ onOpenBooking }) {
       }
 
       // Track active section
-      const sections = ['hero', 'rooms', 'family', 'contact', 'about'];
+      const sections = ['sanctuary', 'rooms', 'family', 'contact', 'about'];
       for (const sectionId of sections) {
         const el = document.getElementById(sectionId);
         if (el) {
@@ -57,10 +57,10 @@ export default function Navbar({ onOpenBooking }) {
             {/* Left: Brand Logo (Intro.mp4 Style) */}
             <div className="flex-shrink-0">
               <a
-                href="#hero"
+                href="#sanctuary"
                 onClick={(e) => {
                   e.preventDefault();
-                  handleNavClick('#hero');
+                  handleNavClick('#sanctuary');
                 }}
                 className="group flex items-center gap-2.5 focus:outline-none"
               >

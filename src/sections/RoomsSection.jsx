@@ -18,7 +18,7 @@ import {
   Layers,
 } from 'lucide-react';
 
-export default function RoomsSection({ onBookRoom }) {
+export default function RoomsSection({ onBookRoom, onExploreRooms }) {
   const [currentChapter, setCurrentChapter] = useState(0);
   const [activeHotspot, setActiveHotspot] = useState(null);
   const [selectedRoomIndex, setSelectedRoomIndex] = useState(0);
@@ -144,7 +144,7 @@ export default function RoomsSection({ onBookRoom }) {
 
   return (
     <section
-      id="rooms"
+      id="sanctuary"
       className="relative min-h-screen bg-charcoal-950 text-cream-50 overflow-hidden select-none"
     >
       {/* Background Stage Image with Smooth Crossfade */}
@@ -599,15 +599,19 @@ export default function RoomsSection({ onBookRoom }) {
             </span>
           </div>
 
-          {/* Jump to Family Section */}
+          {/* Proceed to Rooms Section */}
           <button
             onClick={() => {
-              const el = document.getElementById('family');
-              if (el) el.scrollIntoView({ behavior: 'smooth' });
+              if (onExploreRooms) {
+                onExploreRooms();
+              } else {
+                const el = document.getElementById('rooms');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }
             }}
-            className="group inline-flex items-center gap-2 text-xs uppercase tracking-widest text-sand-300 hover:text-gold-300 transition-colors font-medium"
+            className="group inline-flex items-center gap-2 text-xs uppercase tracking-widest text-sand-300 hover:text-gold-300 transition-colors font-medium cursor-pointer"
           >
-            <span>Proceed to Family Experiences</span>
+            <span>Explore Rooms & Residences</span>
             <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
           </button>
         </div>
