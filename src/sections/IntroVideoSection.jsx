@@ -117,7 +117,14 @@ export default function IntroVideoSection({ onComplete, onExploreSanctuary, onBo
     video.muted = isMuted;
     const playPromise = video.play();
     if (playPromise !== undefined) {
-      playPromise.catch(() => {});
+      playPromise.catch(() => {
+        // Fallback for mobile autoplay policy restrictions
+        if (!video.muted) {
+          video.muted = true;
+          setIsMuted(true);
+          video.play().catch(() => {});
+        }
+      });
     }
 
     const checkTime = () => {
@@ -235,6 +242,8 @@ export default function IntroVideoSection({ onComplete, onExploreSanctuary, onBo
     video.muted = true;
     video.defaultMuted = true;
     video.playsInline = true;
+    video.setAttribute('playsinline', 'true');
+    video.setAttribute('webkit-playsinline', 'true');
     video.loop = false;
 
     if (window.scrollY > 80) {
@@ -319,44 +328,99 @@ export default function IntroVideoSection({ onComplete, onExploreSanctuary, onBo
     };
 
     // Touch handlers for mobile devices
-    let touchY = 0;
+    let touchStartY = 0;
+    let touchStartX = 0;
+    let touchTriggered = false;
+
     const handleTouchStart = (e) => {
-      touchY = e.touches[0].clientY;
+      if (!e.touches || e.touches.length !== 1) return;
+      touchStartY = e.touches[0].clientY;
+      touchStartX = e.touches[0].clientX;
+      touchTriggered = false;
+    };
+
+    const handleTouchMove = (e) => {
+      if (window.scrollY > 15) return;
+
+      if (!isCompletedRef.current) {
+        // Prevent mobile browser from hijacking gesture or cancelling with touchcancel
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+
+        if (isAnimatingRef.current || wheelCooldownRef.current || touchTriggered) return;
+
+        const currentY = e.touches[0].clientY;
+        const currentX = e.touches[0].clientX;
+        const deltaY = touchStartY - currentY;
+        const deltaX = touchStartX - currentX;
+
+        // Ensure vertical swipe (deltaY dominant over deltaX)
+        if (Math.abs(deltaY) > Math.abs(deltaX)) {
+          const threshold = scrollStepRef.current === 0 ? 14 : 20;
+          if (Math.abs(deltaY) >= threshold) {
+            touchTriggered = true;
+            if (deltaY > 0 && scrollStepRef.current < TOTAL_SCROLLS) {
+              // Swipe UP -> advance video forward
+              const nextStep = scrollStepRef.current + 1;
+              isAnimatingRef.current = true;
+              playForward(CHECKPOINTS[nextStep], nextStep);
+            } else if (deltaY < 0 && scrollStepRef.current > 0) {
+              // Swipe DOWN -> reverse video backward
+              const prevStep = scrollStepRef.current - 1;
+              isAnimatingRef.current = true;
+              playBackward(CHECKPOINTS[prevStep], prevStep);
+            }
+          }
+        }
+      }
     };
 
     const handleTouchEnd = (e) => {
       if (window.scrollY > 15) return;
       if (isAnimatingRef.current || wheelCooldownRef.current) return;
 
-      const deltaY = touchY - e.changedTouches[0].clientY;
+      if (!touchTriggered && e.changedTouches && e.changedTouches[0]) {
+        const deltaY = touchStartY - e.changedTouches[0].clientY;
+        const deltaX = touchStartX - e.changedTouches[0].clientX;
 
-      if (!isCompletedRef.current) {
-        const touchThreshold = scrollStepRef.current === 0 ? 16 : 28;
-        if (Math.abs(deltaY) > touchThreshold) {
-          if (deltaY > 0 && scrollStepRef.current < TOTAL_SCROLLS) {
-            const nextStep = scrollStepRef.current + 1;
-            isAnimatingRef.current = true;
-            playForward(CHECKPOINTS[nextStep], nextStep);
-          } else if (deltaY < 0 && scrollStepRef.current > 0) {
-            const prevStep = scrollStepRef.current - 1;
-            isAnimatingRef.current = true;
-            playBackward(CHECKPOINTS[prevStep], prevStep);
+        if (Math.abs(deltaY) > Math.abs(deltaX)) {
+          if (!isCompletedRef.current) {
+            const threshold = scrollStepRef.current === 0 ? 14 : 20;
+            if (Math.abs(deltaY) >= threshold) {
+              if (deltaY > 0 && scrollStepRef.current < TOTAL_SCROLLS) {
+                const nextStep = scrollStepRef.current + 1;
+                isAnimatingRef.current = true;
+                playForward(CHECKPOINTS[nextStep], nextStep);
+              } else if (deltaY < 0 && scrollStepRef.current > 0) {
+                const prevStep = scrollStepRef.current - 1;
+                isAnimatingRef.current = true;
+                playBackward(CHECKPOINTS[prevStep], prevStep);
+              }
+            }
+          } else {
+            if (deltaY > 20 && canProceedAfterCompleteRef.current) {
+              handleProceedToLanding();
+            } else if (deltaY < -20 && window.scrollY <= 10) {
+              const prevStep = TOTAL_SCROLLS - 1;
+              isAnimatingRef.current = true;
+              playBackward(CHECKPOINTS[prevStep], prevStep);
+            }
           }
         }
-      } else {
-        if (deltaY > 28 && canProceedAfterCompleteRef.current) {
-          handleProceedToLanding();
-        } else if (deltaY < -28 && window.scrollY <= 10) {
-          const prevStep = TOTAL_SCROLLS - 1;
-          isAnimatingRef.current = true;
-          playBackward(CHECKPOINTS[prevStep], prevStep);
-        }
       }
+      touchTriggered = false;
+    };
+
+    const handleTouchCancel = () => {
+      touchTriggered = false;
     };
 
     window.addEventListener('wheel', handleWheel, { passive: false });
     window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
     window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    window.addEventListener('touchcancel', handleTouchCancel, { passive: true });
 
     return () => {
       document.body.style.overflow = '';
@@ -366,7 +430,9 @@ export default function IntroVideoSection({ onComplete, onExploreSanctuary, onBo
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('wheel', handleWheel);
       window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('touchcancel', handleTouchCancel);
     };
   }, []);
 
@@ -389,7 +455,8 @@ export default function IntroVideoSection({ onComplete, onExploreSanctuary, onBo
   return (
     <section
       id="intro-video"
-      className="relative h-screen w-full overflow-hidden bg-charcoal-950 select-none cursor-pointer"
+      style={{ touchAction: isCompleted ? 'auto' : 'none' }}
+      className="relative h-screen h-[100dvh] w-full overflow-hidden bg-charcoal-950 select-none cursor-pointer"
       onClick={() => {
         if (isAnimatingRef.current || wheelCooldownRef.current) return;
         if (scrollStepRef.current < TOTAL_SCROLLS) {
@@ -412,6 +479,8 @@ export default function IntroVideoSection({ onComplete, onExploreSanctuary, onBo
         src="/videos/Main-8.mp4"
         className="absolute inset-0 w-full h-full object-cover transform-gpu will-change-transform"
         playsInline
+        webkit-playsinline="true"
+        x5-playsinline="true"
         muted={isMuted}
         preload="auto"
       />
@@ -434,23 +503,23 @@ export default function IntroVideoSection({ onComplete, onExploreSanctuary, onBo
 
       {/* Top Controls: Sound & Skip */}
       <div
-        className="absolute top-24 right-6 sm:right-12 z-20 flex items-center gap-3"
+        className="absolute top-20 sm:top-24 right-4 sm:right-12 z-30 flex items-center gap-2 sm:gap-3"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={toggleSound}
           aria-label={isMuted ? 'Unmute video audio' : 'Mute video audio'}
-          className="p-2.5 rounded-full bg-charcoal-950/60 hover:bg-gold-500 hover:text-charcoal-950 text-white border border-white/20 hover:border-gold-400 backdrop-blur-md transition-all duration-300 active:scale-95 shadow-lg"
+          className="p-2 sm:p-2.5 rounded-full bg-charcoal-950/60 hover:bg-gold-500 hover:text-charcoal-950 text-white border border-white/20 hover:border-gold-400 backdrop-blur-md transition-all duration-300 active:scale-95 shadow-lg"
         >
-          {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+          {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
         </button>
 
         <button
           onClick={handleProceedToLanding}
-          className="group inline-flex items-center gap-2 px-4 py-2 rounded-full bg-charcoal-950/60 hover:bg-gold-500 hover:text-charcoal-950 text-white border border-white/20 hover:border-gold-400 backdrop-blur-md text-[11px] uppercase tracking-widest font-medium transition-all duration-300 active:scale-95 shadow-lg"
+          className="group inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-charcoal-950/60 hover:bg-gold-500 hover:text-charcoal-950 text-white border border-white/20 hover:border-gold-400 backdrop-blur-md text-[10px] sm:text-[11px] uppercase tracking-widest font-medium transition-all duration-300 active:scale-95 shadow-lg"
         >
           <span>Skip to Sanctuary</span>
-          <FastForward size={13} className="group-hover:translate-x-0.5 transition-transform" />
+          <FastForward size={12} className="group-hover:translate-x-0.5 transition-transform" />
         </button>
       </div>
 
@@ -463,21 +532,21 @@ export default function IntroVideoSection({ onComplete, onExploreSanctuary, onBo
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute inset-0 z-20 flex flex-col items-center justify-center px-6 text-center pointer-events-none"
+            className="absolute inset-0 z-20 flex flex-col items-center justify-center px-4 sm:px-6 text-center pointer-events-none"
           >
             {/* Subtle backdrop gradient for crisp text readability over aerial resort shot */}
             <div className="absolute inset-0 bg-charcoal-950/25 pointer-events-none -z-10" />
 
-            <div className="max-w-4xl mx-auto flex flex-col items-center gap-5 sm:gap-6 mt-14 sm:mt-18">
+            <div className="max-w-4xl mx-auto flex flex-col items-center gap-3.5 sm:gap-6 mt-8 sm:mt-18 px-2">
               {/* Top Badge: Madurai / Chennai reference style */}
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15, duration: 0.6 }}
-                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-charcoal-950/70 border border-gold-400/40 backdrop-blur-md text-gold-300 text-[10px] sm:text-[11px] uppercase tracking-[0.25em] font-medium shadow-lg pointer-events-auto"
+                className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full bg-charcoal-950/70 border border-gold-400/40 backdrop-blur-md text-gold-300 text-[9px] sm:text-[11px] uppercase tracking-[0.2em] sm:tracking-[0.25em] font-medium shadow-lg pointer-events-auto"
               >
-                <Sparkles size={12} className="text-gold-400 animate-pulse" />
-                <span>EAST COAST CANOPY · EXCLUSIVE LUXURY SANCTUARY</span>
+                <Sparkles size={11} className="text-gold-400 animate-pulse shrink-0" />
+                <span className="truncate">EAST COAST CANOPY · EXCLUSIVE LUXURY SANCTUARY</span>
               </motion.div>
 
               {/* Bold Serif Headline with Italic Gold Accent matching reference image */}
@@ -485,7 +554,7 @@ export default function IntroVideoSection({ onComplete, onExploreSanctuary, onBo
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.25, duration: 0.7 }}
-                className="text-4xl sm:text-6xl md:text-7xl lg:text-[76px] font-serif text-white tracking-tight leading-[1.08] drop-shadow-2xl font-medium"
+                className="text-3xl sm:text-6xl md:text-7xl lg:text-[76px] font-serif text-white tracking-tight leading-[1.12] sm:leading-[1.08] drop-shadow-2xl font-medium"
               >
                 Where Coastal Serenity <br />
                 <span className="font-serif italic font-normal text-gold-300 drop-shadow-lg">
@@ -498,7 +567,7 @@ export default function IntroVideoSection({ onComplete, onExploreSanctuary, onBo
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.35, duration: 0.7 }}
-                className="text-cream-100/90 text-sm sm:text-base md:text-lg max-w-2xl mx-auto leading-relaxed font-light drop-shadow-md"
+                className="text-cream-100/90 text-xs sm:text-base md:text-lg max-w-2xl mx-auto leading-relaxed font-light drop-shadow-md px-2"
               >
                 An architectural sanctuary nestled along the serene East Coast canopy.
                 Private mineral plunge pools, bioclimatic pavilions, and boundless natural stillness.
@@ -509,14 +578,14 @@ export default function IntroVideoSection({ onComplete, onExploreSanctuary, onBo
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.45, duration: 0.7 }}
-                className="flex flex-wrap items-center justify-center gap-4 pt-2 pointer-events-auto"
+                className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-4 pt-1 sm:pt-2 pointer-events-auto"
               >
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     onBookStay?.();
                   }}
-                  className="px-7 py-3.5 rounded-full bg-gold-500 hover:bg-gold-400 text-charcoal-950 font-semibold text-xs uppercase tracking-[0.18em] shadow-xl hover:shadow-gold-500/30 transition-all duration-300 active:scale-95"
+                  className="px-5 py-2.5 sm:px-7 sm:py-3.5 rounded-full bg-gold-500 hover:bg-gold-400 text-charcoal-950 font-semibold text-[11px] sm:text-xs uppercase tracking-[0.16em] sm:tracking-[0.18em] shadow-xl hover:shadow-gold-500/30 transition-all duration-300 active:scale-95"
                 >
                   Reserve Sanctuary
                 </button>
@@ -525,7 +594,7 @@ export default function IntroVideoSection({ onComplete, onExploreSanctuary, onBo
                     e.stopPropagation();
                     onExploreSanctuary?.();
                   }}
-                  className="px-7 py-3.5 rounded-full bg-charcoal-950/70 hover:bg-charcoal-900/90 text-white border border-white/25 hover:border-gold-400/70 backdrop-blur-md font-medium text-xs uppercase tracking-[0.18em] shadow-xl transition-all duration-300 active:scale-95"
+                  className="px-5 py-2.5 sm:px-7 sm:py-3.5 rounded-full bg-charcoal-950/70 hover:bg-charcoal-900/90 text-white border border-white/25 hover:border-gold-400/70 backdrop-blur-md font-medium text-[11px] sm:text-xs uppercase tracking-[0.16em] sm:tracking-[0.18em] shadow-xl transition-all duration-300 active:scale-95"
                 >
                   Explore Sanctuary
                 </button>
@@ -536,16 +605,16 @@ export default function IntroVideoSection({ onComplete, onExploreSanctuary, onBo
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 0.85 }}
                 transition={{ delay: 0.6, duration: 0.7 }}
-                className="flex flex-col items-center gap-1.5 pt-3 text-cream-200/80 pointer-events-none"
+                className="flex flex-col items-center gap-1 pt-1 sm:pt-3 text-cream-200/80 pointer-events-none"
               >
-                <span className="text-[10px] uppercase tracking-[0.3em] font-light drop-shadow">
+                <span className="text-[9px] sm:text-[10px] uppercase tracking-[0.25em] sm:tracking-[0.3em] font-light drop-shadow">
                   Scroll To Explore
                 </span>
                 <motion.div
                   animate={{ y: [0, 5, 0] }}
                   transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
                 >
-                  <ChevronDown size={16} className="text-gold-400" />
+                  <ChevronDown size={14} className="text-gold-400" />
                 </motion.div>
               </motion.div>
             </div>
